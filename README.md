@@ -104,7 +104,7 @@ npm run dev
 - **Framer Motion**: Animations
 - **Zustand**: State management with persistence
 - **OpenAI API**: AI-powered text processing
-- **pdf-parse**: PDF text extraction
+- **pdfjs-dist**: PDF text extraction
 - **mammoth**: DOCX text extraction
 - **Lucide React**: Icons
 - **shadcn/ui**: UI components

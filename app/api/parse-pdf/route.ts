@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-// @ts-ignore
-import pdf from 'pdf-parse';
+import * as pdfjsLib from 'pdfjs-dist';
 import * as mammoth from 'mammoth';
 import { sanitizeInput } from '@/lib/api';
+
+// Set up PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 // Simple in-memory rate limiter
 const rateLimiter = new Map<string, { count: number; resetTime: number }>();
@@ -24,19 +26,28 @@ function checkRateLimit(identifier: string, limit = 10, windowMs = 60000): boole
   return true;
 }
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+async function extractTextFromPDF(buffer: Buffer): Promise<string> {
+  const loadingTask = pdfjsLib.getDocument({ data: buffer });
+  const pdfDocument = await loadingTask.promise;
+  
+  let fullText = '';
+  
+  for (let i = 1; i <= pdfDocument.numPages; i++) {
+    const page = await pdfDocument.getPage(i);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map((item: any) => item.str).join(' ');
+    fullText += pageText + '\n';
+  }
+  
+  return fullText;
+}
 
 async function extractTextFromFile(file: File): Promise<string> {
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
 
   if (file.type === 'application/pdf') {
-    const data = await pdf(buffer);
-    return data.text;
+    return await extractTextFromPDF(buffer);
   } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
     const result = await mammoth.extractRawText({ buffer });
     return result.value;
